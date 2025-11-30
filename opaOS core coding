@@ -1,0 +1,934 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Terminal, Folder, File, Download, Package, Github, Settings, Wifi, Battery, Volume2, Power, Cpu, HardDrive, Activity, Monitor, Zap } from 'lucide-react';
+
+export default function OpaOS() {
+  const [input, setInput] = useState('');
+  const [history, setHistory] = useState([
+    { type: 'system', content: 'Welcome to OpaOS v1.0 - Open Source Terminal Distribution' },
+    { type: 'system', content: 'Type "help" for available commands or "opa" for AI assistance' }
+  ]);
+  const [currentDir, setCurrentDir] = useState('~');
+  const [fileSystem, setFileSystem] = useState({
+    '~': { type: 'dir', contents: ['documents', 'downloads', 'projects'] },
+    '~/documents': { type: 'dir', contents: ['readme.txt'] },
+    '~/downloads': { type: 'dir', contents: [] },
+    '~/projects': { type: 'dir', contents: [] },
+    '~/documents/readme.txt': { type: 'file', content: 'Welcome to OpaOS! This is your home directory.' }
+  });
+  const [installedPackages, setInstalledPackages] = useState(['git', 'npm', 'python', 'gcc']);
+  const [showDesktop, setShowDesktop] = useState(false);
+  const [time, setTime] = useState(new Date());
+  const [showSystemMenu, setShowSystemMenu] = useState(false);
+  
+  // Window management
+  const [windows, setWindows] = useState([]);
+  const [activeWindow, setActiveWindow] = useState(null);
+  const [nextWindowId, setNextWindowId] = useState(1);
+  
+  const [desktopIcons, setDesktopIcons] = useState([
+    { id: 1, name: 'Documents', icon: 'Folder', color: 'purple', x: 20, y: 20 },
+    { id: 2, name: 'Downloads', icon: 'Download', color: 'blue', x: 20, y: 140 },
+    { id: 3, name: 'Packages', icon: 'Package', color: 'green', x: 20, y: 260 },
+    { id: 4, name: 'GitHub', icon: 'Github', color: 'orange', x: 20, y: 380 },
+    { id: 5, name: 'Terminal', icon: 'Terminal', color: 'cyan', x: 140, y: 20 },
+    { id: 6, name: 'Browser', icon: 'Package', color: 'pink', x: 140, y: 140 },
+    { id: 7, name: 'Settings', icon: 'Settings', color: 'gray', x: 140, y: 260 },
+  ]);
+  
+  const [draggedIcon, setDraggedIcon] = useState(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const terminalRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // System stats
+  const cpuUsage = 35;
+  const ramUsage = 45;
+  const diskUsage = 60;
+  const uptime = 48;
+  const totalRam = 16;
+  const usedRam = ((ramUsage / 100) * totalRam).toFixed(1);
+  const totalDisk = 512;
+  const usedDisk = ((diskUsage / 100) * totalDisk).toFixed(0);
+
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [history]);
+
+  const commands = {
+    help: () => ({
+      type: 'output',
+      content: `Available Commands:
+  help          - Show this help message
+  ls            - List directory contents
+  cd [dir]      - Change directory
+  pwd           - Print working directory
+  clear         - Clear terminal
+  browser [url] - Open web browser
+  desktop       - Toggle desktop mode
+  
+Network Tools:
+  ping [host] [-c count] - Ping a server
+  traceroute [host]      - Trace route to host
+  nslookup [domain]      - DNS lookup
+  dig [domain] [type]    - Advanced DNS query
+  whois [domain]         - Domain registration info
+  geoip [ip]            - Get IP geolocation
+  portscan [host] [ports] - Scan ports on host
+  
+Scripts:
+  serverinfo [host]     - Comprehensive server analysis
+  monitorping [host] [duration] - Extended ping monitoring
+  dnslookup [domain]    - Complete DNS analysis
+  
+  exit          - Close terminal`
+    }),
+
+    ping: (args) => {
+      if (args.length === 0) {
+        return { type: 'error', content: 'ping: missing host operand' };
+      }
+      
+      const host = args[0];
+      const count = args.includes('-c') ? parseInt(args[args.indexOf('-c') + 1]) || 4 : 4;
+      
+      const responses = [];
+      const ip = `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+      responses.push(`PING ${host} (${ip}): 56 data bytes`);
+      
+      for (let i = 0; i < count; i++) {
+        const time = (Math.random() * 100 + 10).toFixed(2);
+        const ttl = Math.floor(Math.random() * 10) + 54;
+        responses.push(`64 bytes from ${host}: icmp_seq=${i + 1} ttl=${ttl} time=${time} ms`);
+      }
+      
+      const avgTime = (Math.random() * 100 + 10).toFixed(2);
+      responses.push(`\n--- ${host} ping statistics ---`);
+      responses.push(`${count} packets transmitted, ${count} received, 0% packet loss`);
+      responses.push(`rtt min/avg/max = ${(parseFloat(avgTime) - 10).toFixed(2)}/${avgTime}/${(parseFloat(avgTime) + 20).toFixed(2)} ms`);
+      
+      return { type: 'output', content: responses.join('\n') };
+    },
+
+    traceroute: (args) => {
+      if (args.length === 0) {
+        return { type: 'error', content: 'traceroute: missing host' };
+      }
+      
+      const host = args[0];
+      const hops = Math.floor(Math.random() * 8) + 8;
+      const responses = [];
+      
+      responses.push(`traceroute to ${host} (${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}), 30 hops max`);
+      
+      for (let i = 1; i <= hops; i++) {
+        const ip = `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+        const time1 = (Math.random() * 20 + i * 5).toFixed(3);
+        const time2 = (Math.random() * 20 + i * 5).toFixed(3);
+        const time3 = (Math.random() * 20 + i * 5).toFixed(3);
+        const hostname = i === hops ? host : `router${i}.isp.net`;
+        
+        responses.push(`${i.toString().padStart(2)}  ${hostname} (${ip})  ${time1} ms  ${time2} ms  ${time3} ms`);
+      }
+      
+      return { type: 'output', content: responses.join('\n') };
+    },
+
+    nslookup: (args) => {
+      if (args.length === 0) {
+        return { type: 'error', content: 'nslookup: missing domain name' };
+      }
+      
+      const domain = args[0];
+      const ip = `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+      
+      return {
+        type: 'output',
+        content: `Server:		8.8.8.8
+Address:	8.8.8.8#53
+
+Non-authoritative answer:
+Name:	${domain}
+Address: ${ip}
+Address: ${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`
+      };
+    },
+
+    dig: (args) => {
+      if (args.length === 0) {
+        return { type: 'error', content: 'dig: missing domain name' };
+      }
+      
+      const domain = args[0];
+      const recordType = args[1] || 'A';
+      
+      const generateIP = () => `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+      
+      return {
+        type: 'output',
+        content: `
+; <<>> DiG 9.18.12 <<>> ${domain} ${recordType}
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: ${Math.floor(Math.random() * 65535)}
+
+;; QUESTION SECTION:
+;${domain}.			IN	${recordType}
+
+;; ANSWER SECTION:
+${recordType === 'A' ? `${domain}.		300	IN	A	${generateIP()}` : ''}
+${recordType === 'MX' ? `${domain}.		300	IN	MX	10 mail.${domain}.\n${domain}.		300	IN	MX	20 mail2.${domain}.` : ''}
+${recordType === 'NS' ? `${domain}.		300	IN	NS	ns1.${domain}.\n${domain}.		300	IN	NS	ns2.${domain}.` : ''}
+
+;; Query time: ${Math.floor(Math.random() * 50)} msec
+;; SERVER: 8.8.8.8#53
+;; WHEN: ${new Date().toString()}`
+      };
+    },
+
+    whois: (args) => {
+      if (args.length === 0) {
+        return { type: 'error', content: 'whois: missing domain name' };
+      }
+      
+      const domain = args[0];
+      const registrars = ['GoDaddy', 'Namecheap', 'Google Domains', 'Cloudflare'];
+      const registrar = registrars[Math.floor(Math.random() * registrars.length)];
+      
+      return {
+        type: 'output',
+        content: `Domain Name: ${domain.toUpperCase()}
+Registry Domain ID: ${Math.random().toString(36).substring(2, 15).toUpperCase()}
+Registrar: ${registrar}
+Updated Date: ${new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+Creation Date: ${new Date(Date.now() - Math.random() * 3650 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+Expiration Date: ${new Date(Date.now() + Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+Domain Status: clientTransferProhibited
+Name Servers:
+  ns1.${domain}
+  ns2.${domain}
+DNSSEC: unsigned
+
+Registrant Country: US`
+      };
+    },
+
+    geoip: (args) => {
+      if (args.length === 0) {
+        return { type: 'error', content: 'geoip: missing IP address' };
+      }
+      
+      const ip = args[0];
+      const cities = ['New York', 'London', 'Tokyo', 'Singapore', 'Sydney', 'Frankfurt', 'Amsterdam', 'Toronto'];
+      const countries = ['United States', 'United Kingdom', 'Japan', 'Singapore', 'Australia', 'Germany', 'Netherlands', 'Canada'];
+      const isps = ['Amazon AWS', 'Google Cloud', 'Cloudflare', 'Digital Ocean', 'Microsoft Azure', 'AT&T', 'Verizon'];
+      
+      const idx = Math.floor(Math.random() * cities.length);
+      
+      return {
+        type: 'output',
+        content: `IP Geolocation Report for ${ip}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IP Address:    ${ip}
+Country:       ${countries[idx]}
+City:          ${cities[idx]}
+Latitude:      ${(Math.random() * 180 - 90).toFixed(4)}
+Longitude:     ${(Math.random() * 360 - 180).toFixed(4)}
+ISP:           ${isps[Math.floor(Math.random() * isps.length)]}
+Organization:  ${isps[Math.floor(Math.random() * isps.length)]} Inc.
+Timezone:      UTC${Math.floor(Math.random() * 24) - 12}
+AS Number:     AS${Math.floor(Math.random() * 50000) + 10000}`
+      };
+    },
+
+    portscan: (args) => {
+      if (args.length === 0) {
+        return { type: 'error', content: 'portscan: missing host' };
+      }
+      
+      const host = args[0];
+      const portRange = args[1] || '1-1000';
+      const [start, end] = portRange.split('-').map(n => parseInt(n));
+      
+      const responses = [];
+      responses.push(`Starting port scan on ${host}`);
+      responses.push(`Scanning ports ${start}-${end}...\n`);
+      
+      const commonPorts = [21, 22, 23, 25, 53, 80, 110, 143, 443, 3306, 3389, 8080];
+      const openPorts = commonPorts.filter(p => p >= start && p <= end && Math.random() > 0.6);
+      
+      openPorts.forEach(port => {
+        const services = {21: 'ftp', 22: 'ssh', 80: 'http', 443: 'https', 3306: 'mysql'};
+        responses.push(`Port ${port}/tcp	OPEN	${services[port] || 'unknown'}`);
+      });
+      
+      responses.push(`\nScan complete. ${openPorts.length} open ports found.`);
+      return { type: 'output', content: responses.join('\n') };
+    },
+
+    serverinfo: (args) => {
+      if (args.length === 0) {
+        return { type: 'error', content: 'serverinfo: missing host' };
+      }
+      
+      const host = args[0];
+      const ip = `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+      
+      return {
+        type: 'output',
+        content: `
+╔════════════════════════════════════════════════════════╗
+║          COMPREHENSIVE SERVER ANALYSIS                 ║
+║          Target: ${host.padEnd(38)}║
+╚════════════════════════════════════════════════════════╝
+
+[1/5] DNS Resolution...
+→ IP Address: ${ip}
+→ Reverse DNS: server-${ip.replace(/\./g, '-')}.hosting.net
+→ Name Servers: ns1.${host}, ns2.${host}
+
+[2/5] Network Connectivity...
+→ Ping Response: ${(Math.random() * 50 + 20).toFixed(2)} ms
+→ Packet Loss: 0%
+→ TTL: ${Math.floor(Math.random() * 10) + 54}
+→ Route Hops: ${Math.floor(Math.random() * 8) + 8}
+
+[3/5] Port Scan Results...
+→ Port 22 (SSH): OPEN
+→ Port 80 (HTTP): OPEN
+→ Port 443 (HTTPS): OPEN
+→ Port 3306 (MySQL): FILTERED
+
+[4/5] Geographic Information...
+→ Location: ${['New York, US', 'London, UK', 'Singapore, SG'][Math.floor(Math.random() * 3)]}
+→ ISP: ${['Amazon AWS', 'Google Cloud', 'Cloudflare'][Math.floor(Math.random() * 3)]}
+→ AS Number: AS${Math.floor(Math.random() * 50000) + 10000}
+
+[5/5] Domain Information...
+→ Registrar: ${['GoDaddy', 'Namecheap', 'Cloudflare'][Math.floor(Math.random() * 3)]}
+→ Created: ${new Date(Date.now() - Math.random() * 3650 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+→ Expires: ${new Date(Date.now() + Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+
+╔════════════════════════════════════════════════════════╗
+║ Analysis Complete - All checks passed ✓                ║
+╚════════════════════════════════════════════════════════╝`
+      };
+    },
+
+    monitorping: (args) => {
+      if (args.length === 0) {
+        return { type: 'error', content: 'monitorping: missing host' };
+      }
+      
+      const host = args[0];
+      const duration = args[1] ? parseInt(args[1]) : 30;
+      const ip = `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+      
+      const responses = [];
+      responses.push(`╔════════════════════════════════════════════════════════╗`);
+      responses.push(`║     EXTENDED PING MONITORING SESSION                  ║`);
+      responses.push(`╚════════════════════════════════════════════════════════╝`);
+      responses.push(`Target: ${host} (${ip})`);
+      responses.push(`Duration: ${duration} seconds`);
+      responses.push(`Interval: 1 second\n`);
+      
+      const times = [];
+      let lost = 0;
+      
+      for (let i = 1; i <= Math.min(duration, 20); i++) {
+        if (Math.random() > 0.95) {
+          responses.push(`[${i.toString().padStart(2)}] Request timeout for icmp_seq ${i}`);
+          lost++;
+        } else {
+          const time = (Math.random() * 100 + 10).toFixed(2);
+          times.push(parseFloat(time));
+          const ttl = Math.floor(Math.random() * 10) + 54;
+          responses.push(`[${i.toString().padStart(2)}] 64 bytes from ${host}: icmp_seq=${i} ttl=${ttl} time=${time} ms`);
+        }
+      }
+      
+      if (duration > 20) {
+        responses.push(`... (${duration - 20} more pings)\n`);
+      }
+      
+      const avgTime = times.length > 0 ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(2) : 0;
+      const minTime = times.length > 0 ? Math.min(...times).toFixed(2) : 0;
+      const maxTime = times.length > 0 ? Math.max(...times).toFixed(2) : 0;
+      const successRate = ((times.length / duration) * 100).toFixed(2);
+      
+      responses.push(`\n╔════════════════════════════════════════════════════════╗`);
+      responses.push(`║ MONITORING SUMMARY                                     ║`);
+      responses.push(`╚════════════════════════════════════════════════════════╝`);
+      responses.push(`Packets Sent:     ${duration}`);
+      responses.push(`Packets Received: ${times.length}`);
+      responses.push(`Packet Loss:      ${lost} (${((lost/duration)*100).toFixed(2)}%)`);
+      responses.push(`Success Rate:     ${successRate}%`);
+      responses.push(`\nLatency Statistics:`);
+      responses.push(`  Minimum: ${minTime} ms`);
+      responses.push(`  Average: ${avgTime} ms`);
+      responses.push(`  Maximum: ${maxTime} ms`);
+      responses.push(`  Jitter:  ${(maxTime - minTime).toFixed(2)} ms`);
+      
+      return { type: 'output', content: responses.join('\n') };
+    },
+
+    dnslookup: (args) => {
+      if (args.length === 0) {
+        return { type: 'error', content: 'dnslookup: missing domain name' };
+      }
+      
+      const domain = args[0];
+      const ip = `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+      
+      return {
+        type: 'output',
+        content: `╔════════════════════════════════════════════════════════╗
+║          COMPLETE DNS ANALYSIS                         ║
+║          Domain: ${domain.padEnd(38)}║
+╚════════════════════════════════════════════════════════╝
+
+[A Records - IPv4 Addresses]
+${domain}.		300	IN	A	${ip}
+${domain}.		300	IN	A	${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}
+
+[AAAA Records - IPv6 Addresses]
+${domain}.		300	IN	AAAA	2001:${Math.floor(Math.random() * 9999).toString(16)}::1
+
+[MX Records - Mail Servers]
+${domain}.		300	IN	MX	10 mail1.${domain}.
+${domain}.		300	IN	MX	20 mail2.${domain}.
+
+[NS Records - Name Servers]
+${domain}.		300	IN	NS	ns1.${domain}.
+${domain}.		300	IN	NS	ns2.${domain}.
+${domain}.		300	IN	NS	ns3.${domain}.
+
+[TXT Records - Text Data]
+${domain}.		300	IN	TXT	"v=spf1 include:_spf.${domain} ~all"
+${domain}.		300	IN	TXT	"google-site-verification=abc123xyz"
+
+[SOA Record - Zone Authority]
+${domain}.		3600	IN	SOA	ns1.${domain}. admin.${domain}. (
+					2024010101 ; Serial
+					3600       ; Refresh
+					1800       ; Retry
+					604800     ; Expire
+					86400 )    ; Minimum TTL
+
+╔════════════════════════════════════════════════════════╗
+║ DNS Lookup Complete - All records retrieved ✓          ║
+╚════════════════════════════════════════════════════════╝`
+      };
+    },
+
+    ls: () => {
+      const contents = fileSystem[currentDir]?.contents || [];
+      if (contents.length === 0) {
+        return { type: 'output', content: '(empty directory)' };
+      }
+      return { 
+        type: 'output', 
+        content: contents.map(item => {
+          const path = currentDir === '~' ? `~/${item}` : `${currentDir}/${item}`;
+          const isDir = fileSystem[path]?.type === 'dir';
+          return isDir ? `📁 ${item}/` : `📄 ${item}`;
+        }).join('  ')
+      };
+    },
+
+    cd: (args) => {
+      if (args.length === 0 || args[0] === '~') {
+        setCurrentDir('~');
+        return { type: 'output', content: '' };
+      }
+      
+      const target = args[0] === '..' 
+        ? currentDir.split('/').slice(0, -1).join('/') || '~'
+        : currentDir === '~' ? `~/${args[0]}` : `${currentDir}/${args[0]}`;
+      
+      if (fileSystem[target]?.type === 'dir') {
+        setCurrentDir(target);
+        return { type: 'output', content: '' };
+      }
+      return { type: 'error', content: `cd: ${args[0]}: No such directory` };
+    },
+
+    pwd: () => ({ type: 'output', content: currentDir }),
+
+    clear: () => {
+      setHistory([]);
+      return null;
+    },
+
+    browser: (args) => {
+      const url = args.length > 0 ? args[0] : 'https://www.google.com';
+      let fullUrl = url;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        fullUrl = 'https://' + url;
+      }
+      
+      createWindow('browser', 'Web Browser', { url: fullUrl });
+      
+      return { type: 'success', content: `Opening browser to ${fullUrl}...` };
+    },
+
+    desktop: () => {
+      setShowDesktop(!showDesktop);
+      return { type: 'success', content: `Desktop mode ${!showDesktop ? 'enabled' : 'disabled'}` };
+    },
+
+    exit: () => ({ type: 'output', content: 'Goodbye! Session terminated.' })
+  };
+
+  const handleCommand = (cmd) => {
+    const trimmed = cmd.trim();
+    if (!trimmed) return;
+
+    setHistory(prev => [...prev, { type: 'input', content: `${currentDir} $ ${trimmed}` }]);
+
+    const [command, ...args] = trimmed.split(' ');
+    const result = commands[command]?.(args) || { 
+      type: 'error', 
+      content: `Command not found: ${command}. Type 'help' for available commands.` 
+    };
+
+    if (result) {
+      setHistory(prev => [...prev, result]);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleCommand(input);
+      setInput('');
+    }
+  };
+
+  // Window management functions
+  const createWindow = (type, title, props = {}) => {
+    const newWindow = {
+      id: nextWindowId,
+      type,
+      title,
+      x: 50 + (nextWindowId * 30) % 300,
+      y: 50 + (nextWindowId * 30) % 200,
+      width: type === 'browser' ? 900 : 700,
+      height: type === 'browser' ? 600 : 500,
+      minimized: false,
+      maximized: false,
+      props
+    };
+    setWindows(prev => [...prev, newWindow]);
+    setActiveWindow(nextWindowId);
+    setNextWindowId(prev => prev + 1);
+  };
+
+  const closeWindow = (id) => {
+    setWindows(prev => prev.filter(w => w.id !== id));
+    if (activeWindow === id) {
+      setActiveWindow(windows.length > 1 ? windows[windows.length - 2].id : null);
+    }
+  };
+
+  const minimizeWindow = (id) => {
+    setWindows(prev => prev.map(w => 
+      w.id === id ? { ...w, minimized: true } : w
+    ));
+  };
+
+  const restoreWindow = (id) => {
+    setWindows(prev => prev.map(w => 
+      w.id === id ? { ...w, minimized: false } : w
+    ));
+    setActiveWindow(id);
+  };
+
+  const maximizeWindow = (id) => {
+    setWindows(prev => prev.map(w => 
+      w.id === id ? { ...w, maximized: !w.maximized } : w
+    ));
+  };
+
+  const bringToFront = (id) => {
+    setActiveWindow(id);
+  };
+
+  const handleWindowMouseDown = (id, e) => {
+    if (e.target.classList.contains('window-drag-handle')) {
+      bringToFront(id);
+      const window = windows.find(w => w.id === id);
+      const startX = e.clientX - window.x;
+      const startY = e.clientY - window.y;
+
+      const handleMouseMove = (e) => {
+        setWindows(prev => prev.map(w => 
+          w.id === id ? { ...w, x: e.clientX - startX, y: e.clientY - startY } : w
+        ));
+      };
+
+      const handleMouseUp = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+  };
+
+  const handleIconMouseDown = (e, icon) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+    setDraggedIcon(icon.id);
+  };
+
+  const handleMouseMove = (e) => {
+    if (draggedIcon !== null) {
+      const desktopRect = e.currentTarget.getBoundingClientRect();
+      const newX = e.clientX - desktopRect.left - dragOffset.x;
+      const newY = e.clientY - desktopRect.top - dragOffset.y;
+
+      setDesktopIcons(icons => 
+        icons.map(icon => 
+          icon.id === draggedIcon 
+            ? { ...icon, x: Math.max(0, Math.min(newX, desktopRect.width - 100)), y: Math.max(0, Math.min(newY, desktopRect.height - 100)) }
+            : icon
+        )
+      );
+    }
+  };
+
+  const handleMouseUp = () => {
+    setDraggedIcon(null);
+  };
+
+  const handleIconDoubleClick = (iconName) => {
+    switch(iconName) {
+      case 'Terminal':
+        createWindow('terminal', 'OpaOS Terminal');
+        break;
+      case 'Browser':
+        createWindow('browser', 'Web Browser', { url: 'https://www.google.com' });
+        break;
+      case 'Documents':
+        createWindow('files', 'Documents', { path: '~/documents' });
+        break;
+      case 'Downloads':
+        createWindow('files', 'Downloads', { path: '~/downloads' });
+        break;
+      case 'Packages':
+        createWindow('packages', 'Package Manager');
+        break;
+      default:
+        setHistory(prev => [...prev, { type: 'system', content: `Opening ${iconName}...` }]);
+    }
+  };
+
+  const getIconComponent = (iconName) => {
+    const icons = {
+      Folder, Download, Package, Github, Terminal, Settings, File
+    };
+    return icons[iconName] || Folder;
+  };
+
+  return (
+    <div className="w-full h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex flex-col">
+      {/* Top Bar */}
+      <div className="bg-black/50 backdrop-blur-sm border-b border-purple-500/30 px-4 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Terminal className="w-5 h-5 text-purple-400" />
+          <span className="text-purple-300 font-semibold">OpaOS Terminal</span>
+          <span className="text-gray-500 text-sm">v1.0</span>
+        </div>
+        <div className="flex items-center gap-4 text-gray-400">
+          <Wifi className="w-4 h-4" />
+          <Volume2 className="w-4 h-4" />
+          <Battery className="w-4 h-4" />
+          <span className="text-sm">{time.toLocaleTimeString()}</span>
+          <button
+            onClick={() => setShowSystemMenu(!showSystemMenu)}
+            className="ml-2 px-3 py-1 bg-cyan-600/20 hover:bg-cyan-600/40 rounded text-sm transition flex items-center gap-2"
+          >
+            <Activity className="w-4 h-4" />
+            System
+          </button>
+          <button 
+            onClick={() => setShowDesktop(!showDesktop)}
+            className="px-3 py-1 bg-purple-600/20 hover:bg-purple-600/40 rounded text-sm transition"
+          >
+            {showDesktop ? 'Hide Desktop' : 'Show Desktop'}
+          </button>
+        </div>
+      </div>
+
+      {/* System Information Menu */}
+      {showSystemMenu && (
+        <div className="absolute top-14 right-4 z-50 w-96 bg-gradient-to-br from-gray-900 via-purple-900/50 to-gray-900 backdrop-blur-xl rounded-xl border-2 border-cyan-500/30 shadow-2xl overflow-hidden">
+          <div className="bg-black/40 border-b border-cyan-500/30 p-4">
+            <div className="flex items-start gap-4">
+              <pre className="text-cyan-400 text-xs leading-tight font-mono">
+{`    ____              
+   / __ \\____  ____ _
+  / / / / __ \\/ __ \`/
+ / /_/ / /_/ / /_/ / 
+ \\____/ .___/\\__,_/  
+     /_/     OS v1.0`}
+              </pre>
+              <div className="flex-1 text-right">
+                <div className="text-purple-300 font-bold text-lg">OpaOS</div>
+                <div className="text-gray-400 text-xs">Linux 6.5.0-opa</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-cyan-300 text-sm font-semibold">
+                <Monitor className="w-4 h-4" />
+                <span>System Information</span>
+              </div>
+              <div className="ml-6 space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">OS:</span>
+                  <span className="text-white">OpaOS v1.0</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Packages:</span>
+                  <span className="text-white">{installedPackages.length} installed</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-green-300 text-sm font-semibold">
+                <Cpu className="w-4 h-4" />
+                <span>CPU Usage</span>
+              </div>
+              <div className="ml-6">
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-gray-400">Intel Core i7</span>
+                  <span className="text-white">{cpuUsage}%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-green-500 to-cyan-500"
+                    style={{ width: `${cpuUsage}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-black/40 border-t border-cyan-500/30 p-3 flex justify-between items-center">
+            <div className="text-xs text-gray-400">
+              {time.toLocaleDateString()} • {time.toLocaleTimeString()}
+            </div>
+            <button
+              onClick={() => setShowSystemMenu(false)}
+              className="px-3 py-1 bg-red-600/20 hover:bg-red-600/40 rounded text-xs text-red-300 transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 relative overflow-hidden bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
+        {showDesktop && (
+          <div 
+            className="absolute inset-0 z-10"
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+          >
+            {desktopIcons.map(icon => {
+              const IconComponent = getIconComponent(icon.icon);
+              const colorClasses = {
+                purple: 'text-purple-400 border-purple-500/30 hover:border-purple-500/60',
+                blue: 'text-blue-400 border-blue-500/30 hover:border-blue-500/60',
+                green: 'text-green-400 border-green-500/30 hover:border-green-500/60',
+                orange: 'text-orange-400 border-orange-500/30 hover:border-orange-500/60',
+                cyan: 'text-cyan-400 border-cyan-500/30 hover:border-cyan-500/60',
+                pink: 'text-pink-400 border-pink-500/30 hover:border-pink-500/60',
+                gray: 'text-gray-400 border-gray-500/30 hover:border-gray-500/60',
+              };
+
+              return (
+                <div
+                  key={icon.id}
+                  className={`absolute w-24 h-24 flex flex-col items-center justify-center cursor-move select-none
+                    bg-black/20 backdrop-blur-sm rounded-xl border-2 transition-all ${colorClasses[icon.color]}
+                    ${draggedIcon === icon.id ? 'scale-110 shadow-2xl' : 'hover:scale-105'}`}
+                  style={{ left: `${icon.x}px`, top: `${icon.y}px` }}
+                  onMouseDown={(e) => handleIconMouseDown(e, icon)}
+                  onDoubleClick={() => handleIconDoubleClick(icon.name)}
+                >
+                  <IconComponent className="w-10 h-10 mb-2" />
+                  <span className="text-white text-xs font-medium text-center px-1">{icon.name}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Windows */}
+        {windows.map((window) => {
+          if (window.minimized) return null;
+          
+          const zIndex = window.id === activeWindow ? 100 : 50;
+          const windowStyle = window.maximized 
+            ? { left: 0, top: 0, width: '100%', height: '100%' }
+            : { left: window.x, top: window.y, width: window.width, height: window.height };
+
+          return (
+            <div
+              key={window.id}
+              className="absolute bg-gray-900 border-2 border-purple-500/30 rounded-lg shadow-2xl overflow-hidden flex flex-col"
+              style={{ ...windowStyle, zIndex }}
+              onMouseDown={() => bringToFront(window.id)}
+            >
+              <div 
+                className="window-drag-handle bg-gradient-to-r from-purple-900 to-gray-900 border-b border-purple-500/30 px-4 py-2 flex items-center justify-between cursor-move select-none"
+                onMouseDown={(e) => handleWindowMouseDown(window.id, e)}
+              >
+                <div className="flex items-center gap-2">
+                  <Terminal className="w-4 h-4 text-purple-400" />
+                  <span className="text-white font-medium text-sm">{window.title}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => minimizeWindow(window.id)}
+                    className="w-6 h-6 bg-yellow-600/20 hover:bg-yellow-600/40 rounded flex items-center justify-center transition"
+                  >
+                    <span className="text-yellow-400 text-xs">−</span>
+                  </button>
+                  <button 
+                    onClick={() => maximizeWindow(window.id)}
+                    className="w-6 h-6 bg-green-600/20 hover:bg-green-600/40 rounded flex items-center justify-center transition"
+                  >
+                    <span className="text-green-400 text-xs">□</span>
+                  </button>
+                  <button 
+                    onClick={() => closeWindow(window.id)}
+                    className="w-6 h-6 bg-red-600/20 hover:bg-red-600/40 rounded flex items-center justify-center transition"
+                  >
+                    <span className="text-red-400 text-xs">×</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-hidden">
+                {window.type === 'terminal' && (
+                  <div className="h-full flex flex-col">
+                    <div className="flex-1 overflow-y-auto p-4 font-mono text-sm">
+                      {history.map((entry, idx) => (
+                        <div key={idx} className="mb-1">
+                          {entry.type === 'input' && <div className="text-green-400">{entry.content}</div>}
+                          {entry.type === 'output' && <div className="text-gray-300 whitespace-pre-wrap">{entry.content}</div>}
+                          {entry.type === 'error' && <div className="text-red-400">{entry.content}</div>}
+                          {entry.type === 'success' && <div className="text-green-400">{entry.content}</div>}
+                          {entry.type === 'system' && <div className="text-cyan-400">{entry.content}</div>}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t border-purple-500/30 p-4">
+                      <div className="flex items-center gap-2 font-mono text-sm">
+                        <span className="text-purple-400">{currentDir}</span>
+                        <span className="text-green-400">$</span>
+                        <input
+                          type="text"
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          onKeyPress={handleKeyPress}
+                          className="flex-1 bg-transparent text-white outline-none"
+                          autoFocus={window.id === activeWindow}
+                          spellCheck={false}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {window.type === 'browser' && (
+                  <div className="h-full flex flex-col">
+                    <div className="bg-black/60 border-b border-purple-500/30 p-3 flex items-center gap-3">
+                      <input
+                        type="text"
+                        defaultValue={window.props.url}
+                        className="flex-1 bg-gray-800 text-white px-4 py-2 rounded border border-gray-600 focus:border-purple-500 outline-none text-sm"
+                        placeholder="Enter URL..."
+                      />
+                    </div>
+                    <iframe
+                      src={window.props.url}
+                      className="flex-1 w-full bg-white"
+                      title={`Browser ${window.id}`}
+                      sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                    />
+                  </div>
+                )}
+
+                {window.type === 'files' && (
+                  <div className="h-full p-4">
+                    <div className="text-white font-mono text-sm">
+                      <div className="mb-4 text-purple-400">{window.props.path}</div>
+                      <div className="space-y-2">
+                        {(fileSystem[window.props.path]?.contents || []).map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 hover:bg-purple-500/10 p-2 rounded cursor-pointer">
+                            <Folder className="w-4 h-4 text-yellow-400" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {window.type === 'packages' && (
+                  <div className="h-full p-4">
+                    <div className="text-white">
+                      <h3 className="text-lg font-bold mb-4 text-purple-300">Installed Packages</h3>
+                      <div className="space-y-2">
+                        {installedPackages.map((pkg, idx) => (
+                          <div key={idx} className="flex items-center gap-2 bg-black/30 p-3 rounded">
+                            <Package className="w-4 h-4 text-green-400" />
+                            <span className="font-mono">{pkg}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Taskbar */}
+        {windows.filter(w => w.minimized).length > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 bg-black/80 backdrop-blur-sm border-t border-purple-500/30 p-2 flex gap-2 z-50">
+            {windows.filter(w => w.minimized).map(window => (
+              <button
+                key={window.id}
+                onClick={() => restoreWindow(window.id)}
+                className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/40 rounded text-white text-sm transition flex items-center gap-2"
+              >
+                <Terminal className="w-4 h-4" />
+                {window.title}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
